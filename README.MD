@@ -19,3 +19,11 @@ sui client call --function transfer_cap --module token_example --package $TOKEN_
 
 sui client switch --address 0xbf611b504dbe4d22a8c7ef39f4a221d8c5b66bc0d05e6d3400cae3851d2543dc
 
+
+
+# Manager contract commands
+sui client publish --gas-budget 200000000 ./sources/manager.move      
+
+sui client call --function mint --module token_example --package 0xced9b4a21f7c6d0665650d0b7269ed9ea00cf65341fc24c040c495fca4fc9d9d --args 0x7f83667b5fb275396a9cc0a34803770fabc8e7a68f0d2fdec1160911b3ef1c8f 100 0xbf611b504dbe4d22a8c7ef39f4a221d8c5b66bc0d05e6d3400cae3851d2543dc --gas-budget 10000000
+
+sui client call --package 0xced9b4a21f7c6d0665650d0b7269ed9ea00cf65341fc24c040c495fca4fc9d9d --module manager --function "buy_tokens" --args 0x7f83667b5fb275396a9cc0a34803770fabc8e7a68f0d2fdec1160911b3ef1c8f --type-args we_hate_the_ui_contracts::token_example::TOKEN_EXAMPLE --gas-budget 10000000  
