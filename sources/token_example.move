@@ -1,13 +1,3 @@
-/*
- 1. Deploy token contract: sui client publish --gas-budget 200000000 ./sources/unit3.move
- 2. Go to explorer and get package ID + TreasuryCap (TreasuryCapability) ID. Package ID, if you can't find it in the explorer, is the first item under "Published Objects:" when you publish 
-    export PACKAGE_ID=0xa437d0c615a8c230ea982acb20781e8dae88f40fd9b51ac4941afaf09edc1e6d
-    export TREASURYCAP_ID=0x357613a26d5539af44db89244dfa3992554ea8fe7fc9553305033a160c4a2545
- 3. sui client call --function mint --module unit3 --package $PACKAGE_ID --args $TREASURYCAP_ID <amount> <recipient_address> --gas-budget 10000000
-*/
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
-
 /// Example coin with a trusted manager responsible for minting/burning (e.g., a stablecoin)
 /// By convention, modules defining custom coin types use upper case names, in contrast to
 /// ordinary modules, which use camel case.
@@ -55,15 +45,6 @@ module we_hate_the_ui_contracts::token_example {
         sui_token_amount: Balance<SUI>,
         // whitepaperUrl: String,
     }
-
-// The formula for a linear bonding curve is as follows:
-// Price = m * Supply + b
-// Where:
-// Price is the current price of the token
-// Supply is the current supply of the token
-// m is the slope or price increment per token
-// b is the y-intercept or the initial price when the supply is zero
-
 
     /// Register the managed currency to acquire its `TreasuryCap`. Because
     /// this is a module initializer, it ensures the currency only gets
@@ -144,7 +125,3 @@ module we_hate_the_ui_contracts::token_example {
         init(TOKEN_EXAMPLE {}, ctx)
     }
 }
-
-// Package ID: 0x86d1a481d7fa520140a0dbb57f7932168d26f0cc385510900a645530d1ef835f
-// TokenExampleStore: 0x419c2a570e60fff2b68bc90e04cc5a00db048675b18de351b06a15251d8d93b3
-// TokenPolicyCap: 0xdc4775481595316fbe736318376c78fc7dfb026262884cc4408149e522e446e7
