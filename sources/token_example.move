@@ -37,13 +37,14 @@ module we_hate_the_ui_contracts::token_example {
         id: UID,
         /// The Treasury Cap for the in-game currency.
         token_example_treasury: TreasuryCap<TOKEN_EXAMPLE>,
+        token_example_metadata: CoinMetadata<TOKEN_EXAMPLE>,
         // Later we should support dynamic metadata, but for now lets use fields
         creator: address,
         discordUrl: String,
         twitterUrl: String,
         websiteUrl: String,
         sui_token_amount: Balance<SUI>,
-        // whitepaperUrl: String,
+        // token_example_metadata: UID,
     }
 
     /// Register the managed currency to acquire its `TreasuryCap`. Because
@@ -52,7 +53,7 @@ module we_hate_the_ui_contracts::token_example {
     fun init(witness: TOKEN_EXAMPLE, ctx: &mut TxContext) {
         // Get a treasury cap for the coin and give it to the transaction sender
         let (treasury_cap, coin_metadata) = coin::create_currency<TOKEN_EXAMPLE>(witness, 2, b"TOKEN_EXAMPLE", b"XMP", b"", option::none(), ctx);
-        transfer::public_freeze_object(coin_metadata);
+        // transfer::public_freeze_object(coin_metadata);
         
         // Create a token policy that allows users to buy or sell the token
         let (mut policy, cap) = token::new_policy(&treasury_cap, ctx); //TODO not sure if mut is safe here
@@ -64,6 +65,7 @@ module we_hate_the_ui_contracts::token_example {
         transfer::share_object(TokenExampleStore {
             id: object::new(ctx),
             token_example_treasury: treasury_cap,
+            token_example_metadata: coin_metadata,
             creator: ctx.sender(),
             discordUrl: string::utf8(b""),
             twitterUrl: string::utf8(b""),
@@ -106,7 +108,8 @@ module we_hate_the_ui_contracts::token_example {
         //TODO: Decimals on the token is hardcoded to 2 here
         // TODO Below is temporary, 
         
-        let mintAmount = coin::value(&payment) * 10; // 0.1 SUI per token, fixed price initially 
+        //TODO Bug here, the amount minted and transferred resolves to "1000000002" instead of "100"
+        let mintAmount = coin::value(&payment) * (10^(self.token_example_metadata.get_decimals() as u64)); // 0.1 SUI per token, fixed price initially 
         debug::print(&string::utf8(b"mintAmount"));
         debug::print(&mintAmount);
 
@@ -133,10 +136,17 @@ module we_hate_the_ui_contracts::token_example {
         debug::print(self)
     }
 
+    //TODO
+    public fun seal_token(){
+        // Move coin metadata out and transfer::public_freeze_object(coin_metadata);
+        // Move TreasuryCap out and transfer to creator (do we want to do this, or let bonding curve live in perpetuity?)
+        // Move TokenPolicy out and transfer to creator (^^^)
+        // Do something with the Sui balance, not sure what yet
+    }
+
     #[test_only]
     /// Wrapper of module initializer for testing
-    public fun test_init(ctx: &mut TxContext) {
-        
+    public fun test_init(ctx: &mut TxContext) {   
         init(TOKEN_EXAMPLE {}, ctx)
     }
 }
