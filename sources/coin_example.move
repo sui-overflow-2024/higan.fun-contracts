@@ -1,6 +1,4 @@
-/// Example coin with a trusted manager responsible for minting/burning (e.g., a stablecoin)
-/// By convention, modules defining custom coin types use upper case names, in contrast to
-/// ordinary modules, which use camel case.
+/// Example custom coin. The backend uses this as a template 
 module we_hate_the_ui_contracts::coin_example {
     use std::option;
     use sui::coin::{Self, Coin, TreasuryCap, CoinMetadata};
@@ -50,7 +48,7 @@ module we_hate_the_ui_contracts::coin_example {
 
     fun init(witness: COIN_EXAMPLE, ctx: &mut TxContext) {
         // Get a treasury cap for the coin and give it to the transaction sender
-        let (treasury_cap, coin_metadata) = coin::create_currency<COIN_EXAMPLE>(witness, 2, b"COIN_EXAMPLE", b"XMP", b"", option::none(), ctx);
+        let (treasury_cap, coin_metadata) = coin::create_currency<COIN_EXAMPLE>(witness, 9, b"COIN_EXAMPLE", b"XMP", b"", b"", ctx);
         // transfer::public_freeze_object(coin_metadata); //TODO There is a follow up function to seal properties on the token, don't forget to freeze the metadata at that time
         
         // create and share the CoinExampleStore
@@ -79,15 +77,34 @@ module we_hate_the_ui_contracts::coin_example {
         self: &mut CoinExampleStore, payment: Coin<SUI>, ctx: &mut TxContext
     ){
         //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
-    // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){ 
+        // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){ 
+        // revert if payment amount is <100000000 
+
+        // if (coin::value(&payment) as u64) < POINT_ZERO_ONE_SUI {
+        //     revert("Payment amount is less than 0.1 SUI");
+        // }
         let source_decimals: u64 = 9;
         let target_decimals = self.coin_example_metadata.get_decimals() as u64;
-        let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
-    
+        // let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
+        let mintAmount = coin::value(&payment);
+
         coin::put(&mut self.sui_coin_amount, payment);
 
         coin::mint_and_transfer(&mut self.coin_example_treasury, mintAmount, sender(ctx), ctx);
     }
+     public fun sell_coins(
+        self: &mut CoinExampleStore, payment: Coin<COIN_EXAMPLE>, ctx: &mut TxContext
+    ){
+        let burnAmount = coin::value(&payment);
+        
+        // Take sui from the balance of this contract
+        let returnSui = coin::take(&mut self.sui_coin_amount, burnAmount, ctx);
+
+        coin::burn(&mut self.coin_example_treasury, payment);
+        
+        transfer::public_transfer(returnSui, ctx.sender())
+    }
+
     public fun sell_action(): String { string::utf8(b"sell_token") }
     public fun dump_self(self: &CoinExampleStore) {
         debug::print(self)
