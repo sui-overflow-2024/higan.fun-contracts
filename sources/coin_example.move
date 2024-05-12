@@ -80,19 +80,12 @@ module we_hate_the_ui_contracts::coin_example {
     ){
         //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
     // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){ 
-        
-        let mintAmount = coin::value(&payment) * 10^(self.coin_example_metadata.get_decimals() as u64); // 0.1 SUI per token, fixed price initially 
-        debug::print(&string::utf8(b"mintAmount"));
-        debug::print(&mintAmount);
-
-        debug::print(&string::utf8(b"putting"));
-        debug::print(&payment);
-        debug::print(&self.sui_coin_amount);
+        let source_decimals: u64 = 9;
+        let target_decimals = self.coin_example_metadata.get_decimals() as u64;
+        let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
+    
         coin::put(&mut self.sui_coin_amount, payment);
-        debug::print(&string::utf8(b"amount after..."));
-        debug::print(&self.sui_coin_amount);
 
-        debug::print(&string::utf8(b"mint_and_transfer"));      
         coin::mint_and_transfer(&mut self.coin_example_treasury, mintAmount, sender(ctx), ctx);
     }
     public fun sell_action(): String { string::utf8(b"sell_token") }

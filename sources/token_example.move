@@ -52,7 +52,8 @@ module we_hate_the_ui_contracts::token_example {
     /// registered once.
     fun init(witness: TOKEN_EXAMPLE, ctx: &mut TxContext) {
         // Get a treasury cap for the coin and give it to the transaction sender
-        let (treasury_cap, coin_metadata) = coin::create_currency<TOKEN_EXAMPLE>(witness, 2, b"TOKEN_EXAMPLE", b"XMP", b"", option::none(), ctx);
+        // TODO, in the new template, keep 9 as the fixed decimal for now, update to be dynamic later
+        let (treasury_cap, coin_metadata) = coin::create_currency<TOKEN_EXAMPLE>(witness, 9, b"TOKEN_EXAMPLE", b"XMP", b"", option::none(), ctx);
         // transfer::public_freeze_object(coin_metadata);
         
         // Create a token policy that allows users to buy or sell the token
@@ -109,7 +110,11 @@ module we_hate_the_ui_contracts::token_example {
         // TODO Below is temporary, 
         
         //TODO Bug here, the amount minted and transferred resolves to "1000000002" instead of "100"
-        let mintAmount = coin::value(&payment) * (10^(self.token_example_metadata.get_decimals() as u64)); // 0.1 SUI per token, fixed price initially 
+        // The below is a monstrosity. Formula is:
+        // We know that Sui has 9 decimals, so 
+        let source_decimals: u64 = 9;
+        let target_decimals = self.token_example_metadata.get_decimals() as u64;
+        let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
         debug::print(&string::utf8(b"mintAmount"));
         debug::print(&mintAmount);
 

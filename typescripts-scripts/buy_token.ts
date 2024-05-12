@@ -21,12 +21,12 @@ const client = new SuiClient({
 
   // Below are functional variables, change these if you need to test a different token or amount
   const amountToSend = pointOneSui;
-  const moduleName = "token_example";
+  const moduleName = "coin_example";
 
   const privateKey = process.env.PRIVATE_KEY;
   const privateKeyMnemonic = process.env.PRIVATE_KEY_MNEMONIC;
   const packageId = process.env.PACKAGE_ID;
-  const exampleTokenStoreObjectId = process.env.EXAMPLE_STORE_ID;
+  const exampleTokenStoreObjectId = process.env.COIN_STORE_ID;
   console.log("packageId", packageId);
   console.log("exampleTokenStoreObjectId", exampleTokenStoreObjectId);
   if (!packageId || !exampleTokenStoreObjectId || !privateKeyMnemonic) {
@@ -50,18 +50,12 @@ const client = new SuiClient({
   console.log("Splitting coins to pay for mint");
   const [coinToSendToMint] = txb.splitCoins(txb.gas, [txb.pure(pointOneSui)]);
   // Call the `my_function` in the `my_module` module with the withdrawn SUI tokens
-  console.log("Calling buy_token with the split coins: ", coinToSendToMint);
-  console.log(
-    "Calling buy_token with the split coins: ",
-    JSON.stringify(coinToSendToMint, null, 2)
-  );
 
-  console.log("keypair.toSuiAddress", keypair.toSuiAddress());
   // txb.transferObjects([coinToSendToMint], txb.pure(keypair.toSuiAddress()));
-
+  console.log("Calling buy_tokens");
   // This will
   txb.moveCall({
-    target: `${packageId}::${moduleName}::buy_token`,
+    target: `${packageId}::${moduleName}::buy_coins`,
     arguments: [
       txb.object(exampleTokenStoreObjectId),
       txb.object(coinToSendToMint),
