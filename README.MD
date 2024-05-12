@@ -27,3 +27,13 @@ sui client publish --gas-budget 200000000 ./sources/manager.move
 sui client call --function mint --module token_example --package 0xced9b4a21f7c6d0665650d0b7269ed9ea00cf65341fc24c040c495fca4fc9d9d --args 0x7f83667b5fb275396a9cc0a34803770fabc8e7a68f0d2fdec1160911b3ef1c8f 100 0xbf611b504dbe4d22a8c7ef39f4a221d8c5b66bc0d05e6d3400cae3851d2543dc --gas-budget 10000000
 
 sui client call --package 0xced9b4a21f7c6d0665650d0b7269ed9ea00cf65341fc24c040c495fca4fc9d9d --module manager --function "buy_tokens" --args 0x7f83667b5fb275396a9cc0a34803770fabc8e7a68f0d2fdec1160911b3ef1c8f --type-args we_hate_the_ui_contracts::token_example::TOKEN_EXAMPLE --gas-budget 10000000  
+
+
+# How to call a function that requires Sui (like minting tokens)
+1. Call `sui client gas`, find some gasCoinId that has enough suiBalance to pay for the function call
+2. Call `sui client split-coin --coin-id $GAS_COIN_ID --amounts 1000000000 --gas-budget 10000000`
+    1. To split 1 Sui: `sui client split-coin --coin-id $GAS_COIN_ID --amounts 10000000000 --gas-budget 10000000`
+    2. To split 0.1 Sui: `sui client split-coin --coin-id $GAS_COIN_ID --amounts 1000000000 --gas-budget 10000000`
+3. Call `sui client gas` again, you should see an entry with a smaller suiBalance, this is the one you split. Record the address of that smaller balance as $PAYMENT_ID
+4. When you call a function with a signature like this, you pass the $PAYMENT_ID to the Coin<SUI> parameter:
+  `public fun buy_token(self: &mut TokenExampleStore, payment: Coin<SUI>, ctx: &mut TxContext){}`
