@@ -51,6 +51,7 @@ After deploying, copy the PackageID under "Published Objects:", and find ObjectI
 ## Sell tokens
 1. [Split coins for the custom token](#how-to-pay-with-a-custom-token)
 2. `sui client call --package $PACKAGE_ID --module coin_example --function "sell_coins" --args $COIN_STORE_ID 0x175fd6dd98911743b3750563053b41a9cbacc2d0a3a7d07e4215aef369455dc8 --gas-budget 10000000`
+
 # Test PTBs
 Example PTBs can be found under [./typescript-scripts](./typescripts-scripts/)
 1. In that directory, run `pnpm i`

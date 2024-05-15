@@ -3,3 +3,4 @@ build
 .envrc
 node_modules
 dist
+test_compilation.move

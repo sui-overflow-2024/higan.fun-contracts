@@ -9,6 +9,7 @@ import {
   decodeSuiPrivateKey,
   encodeSuiPrivateKey,
 } from "@mysten/sui.js/cryptography";
+import { loadConfigFromEnv } from "./util";
 
 const client = new SuiClient({
   url: getFullnodeUrl("devnet"),
@@ -18,32 +19,29 @@ const client = new SuiClient({
   const oneSui = 1_000_000_000; // 1 SUI = 1,000,000,000 MIST
   const pointOneSui = 100_000_000;
   const pointZeroOneSui = 10_000_000;
-
-  // Below are functional variables, change these if you need to test a different token or amount
-  const amountToSend = pointOneSui;
   const moduleName = "coin_example";
 
+  const config = loadConfigFromEnv();
   const txb = new TransactionBlock();
-  // Withdraw the specified amount of SUI tokens from the user's account
-  //   txb.moveCall({
-  //     target: `0x2::coin::withdraw`,
-  //     arguments: [txb.pure(amountToSend)],
-  //     typeArguments: ["0x2::sui::SUI"],
-  //   });
 
   console.log("Splitting coins to pay for mint");
   console.log("txb.gas: ", txb.gas);
-  const [coinToSendToMint] = txb.splitCoins(txb.gas, [txb.pure(pointOneSui)]);
-  // Call the `my_function` in the `my_module` module with the withdrawn SUI tokens
+  console.log(
+    "config.packageId",
+    `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`
+  );
+  const [coinToSendToMint] = txb.splitCoins(
+    `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`,
+    [txb.pure(pointOneSui)]
+  );
 
-  console.log(coinToSendToMint);
   // txb.transferObjects([coinToSendToMint], txb.pure(keypair.toSuiAddress()));
-  console.log("Calling buy_tokens");
+  console.log("Calling sell_coins");
   // This will
   txb.moveCall({
-    target: `${packageId}::${moduleName}::buy_coins`,
+    target: `${config.packageId}::${moduleName}::sell_coins`,
     arguments: [
-      txb.object(exampleTokenStoreObjectId),
+      txb.object(config.storeId),
       txb.object(coinToSendToMint),
       // txb.object(process.env.PAYMENT_ID || ""),
     ],
@@ -53,7 +51,7 @@ const client = new SuiClient({
   try {
     const response = await client.signAndExecuteTransactionBlock({
       transactionBlock: txb,
-      signer: keypair,
+      signer: config.keyPair,
       requestType: "WaitForLocalExecution",
       options: {
         showBalanceChanges: true,

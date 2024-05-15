@@ -15,22 +15,15 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
     const POINT_ONE_SUI: u64 = 100_000_000; //0.1 SUI
     const ONE_SUI: u64 = 1_000_000_000; //1 SUI
 
-    /// Name of the coin. By convention, this type has the same name as its parent module
-    /// and has no fields. The full type of the coin defined by this module will be `COIN<MANAGED>`.
-    /// Note: For some reason the OTW has to be named the same as the address
+    /// The OTW for coin creation, must have the same name as the module
     public struct {{name_snake_case_caps}} has drop {}
     
-    // OTW, burned after the creator is set
+    // OTW for setting the creator, must be burned for the creator to be set
     public struct SetCreatorCap has key {
         id: UID
     }
 
-    public struct WithdrawCap has key {
-        id: UID
-    }
 
-    // #[allow(lint(coin_field))]
-    /// Gems can be purchased through the `Store`.
     public struct {{name_capital_camel_case}}Store has key {
         id: UID,
         /// The Treasury Cap for the in-game currency.
@@ -47,7 +40,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
 
     fun init(witness: {{name_snake_case_caps}}, ctx: &mut TxContext) {
         // Get a treasury cap for the coin and give it to the transaction sender
-        let (treasury_cap, coin_metadata) = coin::create_currency<{{name_snake_case_caps}}>(witness, 9, b"{{name_snake_case_caps}}", b"XMP", b"", option::none(), ctx);
+        let (treasury_cap, coin_metadata) = coin::create_currency<{{name_snake_case_caps}}>(witness, 9, b"{{name_snake_case_caps}}S", b"XMPS", b"", option::none(), ctx);
         // transfer::public_freeze_object(coin_metadata); //TODO There is a follow up function to seal properties on the token, don't forget to freeze the metadata at that time
         
         // create and share the {{name_capital_camel_case}}Store
@@ -72,25 +65,27 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         transfer::public_transfer(treasury_cap, target);
     }
 
+    // When we want to get fancy with PTBs, we should return the token instead of calling mint and transfer, and let the user do whatever they want to do with it
+    // PTBs are awkward with the CLI, so do this towards the end of the project when we're all good w/ Sui Move
     public fun buy_coins(
         self: &mut {{name_capital_camel_case}}Store, payment: Coin<SUI>, ctx: &mut TxContext
     ){
-        //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
+        //Later we want to return the token and the request here and consume in a PTB. For now this just mints and transfers inline for ease of use.
         // : (Token<{{name_snake_case_caps}}>, ActionRequest<{{name_snake_case_caps}}>){ 
-        // revert if payment amount is <100000000 
 
-        // if (coin::value(&payment) as u64) < POINT_ZERO_ONE_SUI {
-        //     revert("Payment amount is less than 0.1 SUI");
-        // }
-        let source_decimals: u64 = 9;
-        let target_decimals = self.metadata.get_decimals() as u64;
-        // let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
+        //TODO Make sure that coins are still allowed to be purchased from the bonding curve
+        //TODO Should require a minimum amount so the user doesn't lose a signficant percentage with integer division
+            // and so it always looks like a gain in the explorer when they sell (fringe issue we saw when buying and selling 1 MIST)
+            // Maybe require 1,000,000 MIST minimum? 0.0001 SUI?
+        
         let mintAmount = coin::value(&payment);
 
         coin::put(&mut self.sui_coin_amount, payment);
 
         coin::mint_and_transfer(&mut self.treasury, mintAmount, sender(ctx), ctx);
     }
+
+
      public fun sell_coins(
         self: &mut {{name_capital_camel_case}}Store, payment: Coin<{{name_snake_case_caps}}>, ctx: &mut TxContext
     ){
@@ -104,7 +99,6 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         transfer::public_transfer(returnSui, ctx.sender())
     }
 
-    public fun sell_action(): String { string::utf8(b"sell_token") }
     public fun dump_self(self: &{{name_capital_camel_case}}Store) {
         debug::print(self)
     }

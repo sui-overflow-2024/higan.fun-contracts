@@ -54,7 +54,7 @@ module we_hate_the_ui_contracts::token_example {
         // Get a treasury cap for the coin and give it to the transaction sender
         // TODO, in the new template, keep 9 as the fixed decimal for now, update to be dynamic later
         let (treasury_cap, coin_metadata) = coin::create_currency<TOKEN_EXAMPLE>(witness, 9, b"TOKEN_EXAMPLE", b"XMP", b"", option::none(), ctx);
-        // transfer::public_freeze_object(coin_metadata);
+        transfer::public_freeze_object(coin_metadata);
         
         // Create a token policy that allows users to buy or sell the token
         let (mut policy, cap) = token::new_policy(&treasury_cap, ctx); //TODO not sure if mut is safe here
