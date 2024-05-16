@@ -9,15 +9,18 @@ import {
   decodeSuiPrivateKey,
   encodeSuiPrivateKey,
 } from "@mysten/sui.js/cryptography";
+import { loadConfigFromEnv } from "./util";
 
 const client = new SuiClient({
   url: getFullnodeUrl("devnet"),
 });
 (async () => {
+  const config = loadConfigFromEnv();
   // Convenience consts for the amount of SUI tokens to send (in MIST)
   const oneSui = 1_000_000_000; // 1 SUI = 1,000,000,000 MIST
   const pointOneSui = 100_000_000;
   const pointZeroOneSui = 10_000_000;
+  const decimals = 3;
 
   // Below are functional variables, change these if you need to test a different token or amount
   const amountToSend = pointOneSui;
@@ -31,20 +34,37 @@ const client = new SuiClient({
   //     typeArguments: ["0x2::sui::SUI"],
   //   });
 
-  console.log("Splitting coins to pay for mint");
-  console.log("txb.gas: ", txb.gas);
-  const [coinToSendToMint] = txb.splitCoins(txb.gas, [txb.pure(pointOneSui)]);
-  // Call the `my_function` in the `my_module` module with the withdrawn SUI tokens
-
-  console.log(coinToSendToMint);
-  // txb.transferObjects([coinToSendToMint], txb.pure(keypair.toSuiAddress()));
-  console.log("Calling buy_tokens");
-  // This will
-  txb.moveCall({
-    target: `${packageId}::${moduleName}::buy_coins`,
+  // console.log("Splitting coins to pay for mint");
+  // console.log("txb.gas: ", txb.gas);
+  // I want to buy 100 tokens
+  const buy100Price = txb.moveCall({
+    target: `${config.packageId}::${moduleName}::get_coin_buy_price`,
     arguments: [
-      txb.object(exampleTokenStoreObjectId),
+      txb.object(config.storeId),
+      txb.pure(100000), // 100,000 tokens in reality, looks like 100 tokens
+    ],
+  });
+
+  const [coinToSendToMint] = txb.splitCoins(txb.gas, [txb.object(buy100Price)]);
+  // // Call the `my_function` in the `my_module` module with the withdrawn SUI tokens
+
+  // console.log(coinToSendToMint);
+  // txb.transferObjects(
+  //   [coinToSendToMint],
+  //   // txb.pure(config.keyPair.toSuiAddress())
+  //   txb.pure(
+  //     "0xb2720b42e26a7fc1eb555ecd154ef3dc2446f80c1f186af901cd38b842e52044"
+  //   )
+  // );
+  // console.log("Calling buy_tokens");
+
+  // // // This will
+  txb.moveCall({
+    target: `${config.packageId}::${moduleName}::buy_coins`,
+    arguments: [
+      txb.object(config.storeId),
       txb.object(coinToSendToMint),
+      txb.pure(100_000),
       // txb.object(process.env.PAYMENT_ID || ""),
     ],
   });
@@ -53,7 +73,7 @@ const client = new SuiClient({
   try {
     const response = await client.signAndExecuteTransactionBlock({
       transactionBlock: txb,
-      signer: keypair,
+      signer: config.keyPair,
       requestType: "WaitForLocalExecution",
       options: {
         showBalanceChanges: true,

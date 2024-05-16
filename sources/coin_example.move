@@ -13,11 +13,12 @@ module we_hate_the_ui_contracts::coin_example {
     use std::debug;
     use sui::math;
 
+    const ENotEnoughSuiForCoinPurchase: u64 = 1;
     const POINT_ZERO_ONE_SUI: u64 = 10_000_000; //0.01 SUI
     const POINT_ONE_SUI: u64 = 100_000_000; //0.1 SUI
     const ONE_SUI: u64 = 1_000_000_000; //1 SUI
-    const PRICE_INCREASE_PER_COIN = 1; // INCREASE PRICE BY ONE MINT PER COIN MINTED
-    const INITIAL_COIN_PRICE = 1_000_000; // 0.001 SUI
+    const PRICE_INCREASE_PER_COIN: u64 = 1; // INCREASE PRICE BY ONE MINT PER COIN MINTED
+    const INITIAL_COIN_PRICE: u64 = 1_000; // 0.000001 SUI
 
     /// Name of the coin. By convention, this type has the same name as its parent module
     /// and has no fields. The full type of the coin defined by this module will be `COIN<MANAGED>`.
@@ -57,7 +58,7 @@ module we_hate_the_ui_contracts::coin_example {
 
     fun init(witness: COIN_EXAMPLE, ctx: &mut TxContext) {
         // Get a treasury cap for the coin and give it to the transaction sender
-        let (treasury_cap, coin_metadata) = coin::create_currency<COIN_EXAMPLE>(witness, 9, b"COIN_EXAMPLE", b"XMP", b"", option::none(), ctx);
+        let (treasury_cap, coin_metadata) = coin::create_currency<COIN_EXAMPLE>(witness, 3, b"COIN_EXAMPLE", b"XMP", b"", option::none(), ctx);
         // transfer::public_freeze_object(coin_metadata); //TODO There is a follow up function to seal properties on the token, don't forget to freeze the metadata at that time
 
         // create and share the CoinExampleStore
@@ -83,25 +84,22 @@ module we_hate_the_ui_contracts::coin_example {
     }
 
     public fun buy_coins(
-        self: &mut CoinExampleStore, payment: Coin<SUI>, ctx: &mut TxContext
+        self: &mut CoinExampleStore, payment: Coin<SUI>, mintAmount: u64, ctx: &mut TxContext
     ){
         // asert!(payment) has minimin value
         //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
         // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){
         // revert if payment amount is <100000000
 
-        // if (coin::value(&payment) as u64) < POINT_ZERO_ONE_SUI {
-        //     revert("Payment amount is less than 0.1 SUI");
-        // }
-        let source_decimals: u64 = 9;
-        let target_decimals = self.metadata.get_decimals() as u64;
+        debug::print(&string::utf8(b"payment value"));
+        debug::print(&coin::value(&payment));
+        assert!(coin::value(&payment) >= get_coin_buy_price(self, mintAmount), ENotEnoughSuiForCoinPurchase); 
         // let reserve_balance = &self.bonding_curve.reserve_balance;
         // let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
 
         // coin::put(reserve_balance, payment);
         // let total_supply = self.bonding_curve.total_supply = coin::total_supply(&self.treasury);
 
-        let mintAmount = get_coin_price(self);
         // let totalCost = m * (math::pow(s1, 2))
         // debug::print(&string::utf8(b"coin price"));
 
@@ -137,15 +135,14 @@ module we_hate_the_ui_contracts::coin_example {
         debug::print(&total_supply);
         if (total_supply == 0) {
             // get initial price
-            ONE_SUI
+            INITIAL_COIN_PRICE
         } else {
             // MIST
             // + slope
             // m + supply + b
             // 100 mist per token
-            let m: u64 = 100;
-
-            ((m * total_supply) + ONE_SUI)
+            
+            ((PRICE_INCREASE_PER_COIN * total_supply) + INITIAL_COIN_PRICE)
         }
 
     }
@@ -197,17 +194,24 @@ module we_hate_the_ui_contracts::coin_example {
         test_scenario::next_tx(&mut scenario, addr1);
         {
             let mut coinExampleStore = test_scenario::take_shared<CoinExampleStore>(&scenario);
-            let coin = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
 
             let coinPrice = get_coin_price(&coinExampleStore);
-            assert!(coinPrice == 1_000_000_000, 0);
+            assert!(coinPrice == 1_000, 0);
+            let buy100Price = get_coin_buy_price(&coinExampleStore, 100_000);
+            debug::print(&string::utf8(b"buy100Price"));
+            debug::print(&buy100Price);
+            assert!(buy100Price == 5_100_050_000, 0);
+            let coin = coin::mint_for_testing<SUI>(buy100Price, test_scenario::ctx(&mut scenario));
+
+            
+
             // debug::print(&get_coin_buy_price(&coinExampleStore), 100);
 
-            buy_coins(&mut coinExampleStore, coin, test_scenario::ctx(&mut scenario));
+            buy_coins(&mut coinExampleStore, coin, 100_000, test_scenario::ctx(&mut scenario));
 
             let reserve_balance = &coinExampleStore.sui_coin_amount;
-            assert!(reserve_balance.value() == 1_000_000_000, 0);
-            assert!(coin::total_supply(&coinExampleStore.treasury) == 1_000_000_000, 0);
+            assert!(reserve_balance.value() == buy100Price, 0);
+            assert!(coin::total_supply(&coinExampleStore.treasury) == 100_000, 0);
 
             // 100,500,000,000,000
             // 100 mist increase per token

@@ -26,10 +26,7 @@ const client = new SuiClient({
 
   console.log("Splitting coins to pay for mint");
   console.log("txb.gas: ", txb.gas);
-  console.log(
-    "config.packageId",
-    `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`
-  );
+  console.log("config.packageId", `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`);
   const [coinToSendToMint] = txb.splitCoins(
     `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`,
     [txb.pure(pointOneSui)]
