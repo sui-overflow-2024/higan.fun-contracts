@@ -20,8 +20,6 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
     const PRICE_INCREASE_PER_COIN: u64 = 1; // INCREASE PRICE BY ONE MIST PER COIN MINTED
     const INITIAL_COIN_PRICE: u64 = 1_000; // 0.000001 SUI
 
-    /// Name of the coin. By convention, this type has the same name as its parent module
-    /// and has no fields. The full type of the coin defined by this module will be `COIN<MANAGED>`.
     /// Note: For some reason the OTW has to be named the same as the address
     public struct {{name_snake_case_caps}} has drop {}
 
@@ -46,6 +44,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         treasury: TreasuryCap<{{name_snake_case_caps}}>,
         // Later we should support dynamic metadata, but for now lets use fields
         creator: address,
+        publisher: address,
         discordUrl: String,
         twitterUrl: String,
         websiteUrl: String,
@@ -62,6 +61,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
             id: object::new(ctx),
             treasury: treasury_cap,
             creator: ctx.sender(),
+            publisher: ctx.sender(),
             discordUrl: string::utf8(b""),
             twitterUrl: string::utf8(b""),
             websiteUrl: string::utf8(b""),
@@ -70,6 +70,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         });
 
     }
+
 
     // Manager will eventually transfer the treasury cap to the creator
     public fun transfer_cap(treasury_cap: TreasuryCap<{{name_snake_case_caps}}>, target: address){
@@ -94,7 +95,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
 
         coin::mint_and_transfer(&mut self.treasury, mintAmount, sender(ctx), ctx);
     }
-    
+
      public fun sell_coins(
         self: &mut {{name_capital_camel_case}}Store, payment: Coin<{{name_snake_case_caps}}>, ctx: &mut TxContext
     ){
