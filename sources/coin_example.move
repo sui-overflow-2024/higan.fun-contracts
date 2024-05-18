@@ -17,7 +17,7 @@ module we_hate_the_ui_contracts::coin_example {
     const POINT_ZERO_ONE_SUI: u64 = 10_000_000; //0.01 SUI
     const POINT_ONE_SUI: u64 = 100_000_000; //0.1 SUI
     const ONE_SUI: u64 = 1_000_000_000; //1 SUI
-    const PRICE_INCREASE_PER_COIN: u64 = 1; // INCREASE PRICE BY ONE MINT PER COIN MINTED
+    const PRICE_INCREASE_PER_COIN: u64 = 1; // INCREASE PRICE BY ONE MIST PER COIN MINTED
     const INITIAL_COIN_PRICE: u64 = 1_000; // 0.000001 SUI
 
     /// Name of the coin. By convention, this type has the same name as its parent module
@@ -41,12 +41,9 @@ module we_hate_the_ui_contracts::coin_example {
     }
 
     // #[allow(lint(coin_field))]
-    /// Gems can be purchased through the `Store`.
     public struct CoinExampleStore has key {
         id: UID,
-        /// The Treasury Cap for the in-game currency.
         treasury: TreasuryCap<COIN_EXAMPLE>,
-        metadata: CoinMetadata<COIN_EXAMPLE>,
         // Later we should support dynamic metadata, but for now lets use fields
         creator: address,
         discordUrl: String,
@@ -57,15 +54,13 @@ module we_hate_the_ui_contracts::coin_example {
     }
 
     fun init(witness: COIN_EXAMPLE, ctx: &mut TxContext) {
-        // Get a treasury cap for the coin and give it to the transaction sender
         let (treasury_cap, coin_metadata) = coin::create_currency<COIN_EXAMPLE>(witness, 3, b"COIN_EXAMPLE", b"XMP", b"", option::none(), ctx);
-        // transfer::public_freeze_object(coin_metadata); //TODO There is a follow up function to seal properties on the token, don't forget to freeze the metadata at that time
+        transfer::public_freeze_object(coin_metadata); 
 
         // create and share the CoinExampleStore
         transfer::share_object(CoinExampleStore {
             id: object::new(ctx),
             treasury: treasury_cap,
-            metadata: coin_metadata,
             creator: ctx.sender(),
             discordUrl: string::utf8(b""),
             twitterUrl: string::utf8(b""),
@@ -86,35 +81,20 @@ module we_hate_the_ui_contracts::coin_example {
     public fun buy_coins(
         self: &mut CoinExampleStore, payment: Coin<SUI>, mintAmount: u64, ctx: &mut TxContext
     ){
-        // asert!(payment) has minimin value
         //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
         // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){
-        // revert if payment amount is <100000000
+        
 
         debug::print(&string::utf8(b"payment value"));
         debug::print(&coin::value(&payment));
         assert!(coin::value(&payment) >= get_coin_buy_price(self, mintAmount), ENotEnoughSuiForCoinPurchase); 
-        // let reserve_balance = &self.bonding_curve.reserve_balance;
-        // let mintAmount = (coin::value(&payment)*10^target_decimals)/(10^source_decimals); //TODO Risk of overflow at high values
-
-        // coin::put(reserve_balance, payment);
-        // let total_supply = self.bonding_curve.total_supply = coin::total_supply(&self.treasury);
-
-        // let totalCost = m * (math::pow(s1, 2))
-        // debug::print(&string::utf8(b"coin price"));
-
-        // debug::print(&coinPrice);
-        // let mintAmount = payment.value() / coinPrice;
-
-        // debug::print(&suiPrice);
-        // debug::print(&mintAmount);
+      
 
         coin::put(&mut self.sui_coin_amount, payment);
-        // coin::put(&mut self.bonding_curve.reserve_balance, payment);
-
 
         coin::mint_and_transfer(&mut self.treasury, mintAmount, sender(ctx), ctx);
     }
+    
      public fun sell_coins(
         self: &mut CoinExampleStore, payment: Coin<COIN_EXAMPLE>, ctx: &mut TxContext
     ){

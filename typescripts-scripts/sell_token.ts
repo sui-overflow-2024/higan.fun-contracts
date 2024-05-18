@@ -26,23 +26,36 @@ const client = new SuiClient({
 
   console.log("Splitting coins to pay for mint");
   console.log("txb.gas: ", txb.gas);
-  console.log("config.packageId", `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`);
-  const [coinToSendToMint] = txb.splitCoins(
-    `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`,
-    [txb.pure(pointOneSui)]
+  console.log(
+    "config.packageId",
+    `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`
   );
 
-  // txb.transferObjects([coinToSendToMint], txb.pure(keypair.toSuiAddress()));
-  console.log("Calling sell_coins");
-  // This will
-  txb.moveCall({
-    target: `${config.packageId}::${moduleName}::sell_coins`,
-    arguments: [
-      txb.object(config.storeId),
-      txb.object(coinToSendToMint),
-      // txb.object(process.env.PAYMENT_ID || ""),
-    ],
+
+  const sell100Amount = txb.moveCall({
+    target: `${config.packageId}::${moduleName}::get_coin_sell_price`,
+    arguments: [txb.object(config.storeId), txb.pure(100_000)],
   });
+  const [coinToSendToMint] = txb.splitCoins(
+    `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`,
+    [txb.object(sell100Amount)]
+  );
+
+  txb.transferObjects(
+    [coinToSendToMint],
+    txb.pure(config.keyPair.toSuiAddress())
+  );
+  // console.log("Calling sell_coins");
+  // // This will
+  // txb.moveCall({
+  //   target: `${config.packageId}::${moduleName}::sell_coins`,
+  //   arguments: [
+  //     txb.object(config.storeId),
+  //     txb.object(coinToSendToMint),
+  //     txb.pure(100_000)
+  //     // txb.object(process.env.PAYMENT_ID || ""),
+  //   ],
+  // });
 
   // Sign and execute the transaction
   try {
