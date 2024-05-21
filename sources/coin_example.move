@@ -35,18 +35,19 @@ module we_hate_the_ui_contracts::coin_example {
         id: UID
     }
 
-    public struct LinearBodingCurve has key, store {
-        id: UID,
-        total_supply: Balance<COIN_EXAMPLE>,
-        reserve_balance: Balance<SUI>,
-    }
-
     public struct CoinSocialsUpdatedEvent has copy, drop {
         coin_store_id: ID,
         twitter_url: String,
         discord_url: String,
         website_url: String,
         sender: address
+    }
+
+    public struct SwapEvent has copy, drop {
+        is_buy: bool,
+        sui_amount: u64,
+        coin_amount: u64,
+        account: address
     }
 
     // #[allow(lint(coin_field))]
@@ -82,7 +83,6 @@ module we_hate_the_ui_contracts::coin_example {
 
     }
 
-
     // Manager will eventually transfer the treasury cap to the creator
     public fun transfer_cap(treasury_cap: TreasuryCap<COIN_EXAMPLE>, target: address){
         //I'm not positive this is secure, in theory: There is only one treasury cap, the person who called init has it,
@@ -98,9 +98,18 @@ module we_hate_the_ui_contracts::coin_example {
 
         assert!(coin::value(&payment) >= get_coin_buy_price(self, mintAmount), ENotEnoughSuiForCoinPurchase);
 
+        let payment_amount = coin::value(&payment);
+
         coin::put(&mut self.sui_coin_amount, payment);
 
         coin::mint_and_transfer(&mut self.treasury, mintAmount, sender(ctx), ctx);
+
+        event::emit(SwapEvent {
+            is_buy: true,
+            sui_amount: payment_amount,
+            coin_amount: mintAmount,
+            account: ctx.sender()
+        });
     }
 
      public fun sell_coins(
@@ -112,6 +121,13 @@ module we_hate_the_ui_contracts::coin_example {
         let returnSui = coin::take(&mut self.sui_coin_amount, burnAmount, ctx);
 
         coin::burn(&mut self.treasury, payment);
+
+        event::emit(SwapEvent {
+            is_buy: false,
+            sui_amount: returnSui.value(),
+            coin_amount: burnAmount,
+            account: ctx.sender()
+        });
 
         transfer::public_transfer(returnSui, ctx.sender())
     }
