@@ -59,6 +59,7 @@ module we_hate_the_ui_contracts::coin_example {
         is_buy: bool,
         sui_amount: u64,
         coin_amount: u64,
+        coin_price: u64,
         account: address
     }
     public struct CoinStatusChangedEvent has copy, drop {
@@ -147,6 +148,7 @@ module we_hate_the_ui_contracts::coin_example {
             is_buy: true,
             sui_amount: payment_amount,
             coin_amount: mintAmount,
+            coin_price: get_coin_price(self),
             account: ctx.sender()
         });
     }
@@ -169,6 +171,7 @@ module we_hate_the_ui_contracts::coin_example {
             is_buy: false,
             sui_amount: returnSui.value(),
             coin_amount: burnAmount,
+            coin_price: get_coin_price(self),
             account: ctx.sender()
         });
 
