@@ -61,10 +61,10 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         coin_amount: u64,
         account: address
     }
-       public struct CoinStatusChanged has copy, drop {
+    public struct CoinStatusChangedEvent has copy, drop {
         old_status: u64,
         new_status: u64,
-        }
+    }
 
     // #[allow(lint(coin_field))]
     public struct {{name_capital_camel_case}}Store has key {
@@ -137,7 +137,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
 
         if(balance_after >= self.target){
             self.status = STATUS_CLOSE_PENDING;
-            event::emit(CoinStatusChanged {
+            event::emit(CoinStatusChangedEvent {
                 old_status: STATUS_OPEN,
                 new_status: STATUS_CLOSE_PENDING
             });
@@ -216,7 +216,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         self.target = target;
         self.creator = creator;
         self.status = STATUS_OPEN;
-        event::emit(CoinStatusChanged {
+        event::emit(CoinStatusChangedEvent {
             old_status: STATUS_STARTING_UP,
             new_status: STATUS_OPEN
         });
@@ -229,7 +229,7 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         self.status = STATUS_CLOSED;
         //TODO We need to transfer the treasury cap to the creator
         // transfer::public_transfer(self.treasury, self.creator);
-        event::emit(CoinStatusChanged {
+        event::emit(CoinStatusChangedEvent {
             old_status: STATUS_CLOSE_PENDING,
             new_status: STATUS_CLOSED
         });
