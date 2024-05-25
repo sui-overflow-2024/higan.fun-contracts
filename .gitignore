@@ -4,3 +4,6 @@ build
 node_modules
 dist
 test_compilation.move
+.DS_Store
+.vscode
+.idea

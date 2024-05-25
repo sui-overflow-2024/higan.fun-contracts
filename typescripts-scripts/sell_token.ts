@@ -31,7 +31,6 @@ const client = new SuiClient({
     `${config.packageId}::${moduleName}::${moduleName.toUpperCase()}`
   );
 
-
   const sell100Amount = txb.moveCall({
     target: `${config.packageId}::${moduleName}::get_coin_sell_price`,
     arguments: [txb.object(config.storeId), txb.pure(100_000)],
