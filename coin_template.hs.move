@@ -59,6 +59,9 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         is_buy: bool,
         sui_amount: u64,
         coin_amount: u64,
+        coin_price: u64,
+        total_sui_reserve: u64,
+        total_supply: u64,
         account: address
     }
     public struct CoinStatusChangedEvent has copy, drop {
@@ -147,6 +150,9 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
             is_buy: true,
             sui_amount: payment_amount,
             coin_amount: mintAmount,
+            coin_price: get_coin_price(self),
+            total_sui_reserve: self.sui_coin_amount.value(),
+            total_supply: coin::total_supply(&self.treasury),
             account: ctx.sender()
         });
     }
@@ -169,6 +175,9 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
             is_buy: false,
             sui_amount: returnSui.value(),
             coin_amount: burnAmount,
+            coin_price: get_coin_price(self),
+            total_sui_reserve: self.sui_coin_amount.value(),
+            total_supply: coin::total_supply(&self.treasury),
             account: ctx.sender()
         });
 
@@ -278,14 +287,14 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         };
 
 
-        
+
         // Set critical metadata first
         test_scenario::next_tx(&mut scenario, addr1);
         {
             let mut coinExampleStore = test_scenario::take_shared<{{name_capital_camel_case}}Store>(&scenario);
             let mut adminCap = test_scenario::take_from_sender<SetCriticalMetadataCap>(&scenario);
-            
-            assert!(coinExampleStore.status == STATUS_STARTING_UP);
+
+            test_utils::assert_eq<u64>(coinExampleStore.status, STATUS_STARTING_UP);
             set_critical_metadata(&mut coinExampleStore, &mut adminCap, 10_000_000, creator); //One sui target, buy below will go over
             test_utils::assert_eq<u64>(coinExampleStore.status, STATUS_OPEN);
             test_utils::assert_eq<u64>(coinExampleStore.target, 10_000_000);
@@ -299,17 +308,17 @@ module we_hate_the_ui_contracts::{{name_snake_case}} {
         {
             let mut coinExampleStore = test_scenario::take_shared<{{name_capital_camel_case}}Store>(&scenario);
             let adminCap = test_scenario::take_from_sender<SetCriticalMetadataCap>(&scenario);
-        
+
             test_utils::assert_eq<u64>(get_coin_price(&coinExampleStore), 1_000);
             let buy1Price = get_coin_buy_price(&coinExampleStore, 1_000);
             debug::print(&string::utf8(b"buy1price"));
             debug::print(&buy1Price);
             test_utils::assert_eq<u64>(buy1Price, 1_500_500);
             let buy1coin = coin::mint_for_testing<SUI>(buy1Price, test_scenario::ctx(&mut scenario));
-            
+
             buy_coins(&mut coinExampleStore, buy1coin, 1_000, test_scenario::ctx(&mut scenario));
             test_utils::assert_eq<u64>(coinExampleStore.status, STATUS_OPEN); //We haven't hit target, so we're still open
-                
+
 
             let buy100Price = get_coin_buy_price(&coinExampleStore, 100_000);
             debug::print(&string::utf8(b"buy100price"));
