@@ -182,6 +182,10 @@ module we_hate_the_ui_contracts::coin_example {
         self.sui_coin_amount.value()
     }
 
+    public fun get_coin_total_supply(self: &CoinExampleStore): u64 {
+        coin::total_supply(&self.treasury)
+    }
+
     // Returns current price of the token based on the bonding curve
     public fun get_coin_price(self: &CoinExampleStore): u64 {
         let total_supply: u64 = coin::total_supply(&self.treasury);
@@ -269,7 +273,7 @@ module we_hate_the_ui_contracts::coin_example {
         debug::print(self)
     }
 
-    // BEGIN_TEST 
+    // BEGIN_TEST
     // (leave above comment here as anchor to strip tests in template)
     #[test_only] use sui::test_scenario;
     #[test_only] use sui::test_utils;
@@ -370,5 +374,5 @@ module we_hate_the_ui_contracts::coin_example {
         scenario.end();
     }
     // (leave below comment here as anchor to strip tests in template)
-    //END_TEST 
+    //END_TEST
 }
