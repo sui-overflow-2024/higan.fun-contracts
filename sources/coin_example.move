@@ -156,25 +156,25 @@ module we_hate_the_ui_contracts::coin_example {
         self: &mut CoinExampleStore, payment: Coin<COIN_EXAMPLE>, ctx: &mut TxContext
     ){
         assert!(self.status == STATUS_OPEN, ETokenNotOpenForBuySell);
-        let burnAmount = coin::value(&payment);
-
+        let sellPrice = get_coin_sell_price(self, coin::value(&payment));
+        let coinAmountSold = coin::value(&payment);
         // Take sui from the balance of this contract
-        let returnSui = coin::take(&mut self.sui_coin_amount, burnAmount, ctx);
+        let returnSui = coin::take(&mut self.sui_coin_amount, sellPrice, ctx);
 
         coin::burn(&mut self.treasury, payment);
 
 
+        transfer::public_transfer(returnSui, ctx.sender());
+
         event::emit(SwapEvent {
             is_buy: false,
-            sui_amount: returnSui.value(),
-            coin_amount: burnAmount,
+            sui_amount: sellPrice,
+            coin_amount: coinAmountSold,
             coin_price: get_coin_price(self),
             total_sui_reserve: self.sui_coin_amount.value(),
             total_supply: coin::total_supply(&self.treasury),
             account: ctx.sender()
         });
-
-        transfer::public_transfer(returnSui, ctx.sender())
     }
 
 
@@ -319,10 +319,14 @@ module we_hate_the_ui_contracts::coin_example {
             debug::print(&buy1Price);
             test_utils::assert_eq<u64>(buy1Price, 1_500_500);
             let buy1coin = coin::mint_for_testing<SUI>(buy1Price, test_scenario::ctx(&mut scenario));
-
             buy_coins(&mut coinExampleStore, buy1coin, 1_000, test_scenario::ctx(&mut scenario));
             test_utils::assert_eq<u64>(coinExampleStore.status, STATUS_OPEN); //We haven't hit target, so we're still open
 
+            let sell1Price = get_coin_sell_price(&coinExampleStore, 1_000);
+            debug::print(&string::utf8(b"sell1price"));
+            debug::print(&sell1Price);
+            test_utils::assert_eq<u64>(sell1Price, 1_500_500);
+            //TODO Test sell_coins here
 
             let buy100Price = get_coin_buy_price(&coinExampleStore, 100_000);
             debug::print(&string::utf8(b"buy100price"));
