@@ -8,9 +8,9 @@ def process_file(input_file, output_file):
         content = file.read()
 
     # Module name, otw, and path anchors
-    content = content.replace('coin_example', '{{name_snake_case}}')
-    content = content.replace('COIN_EXAMPLE', '{{name_snake_case_caps}}')
-    content = content.replace('CoinExample', '{{name_capital_camel_case}}')
+    content = content.replace('coin_contract', '{{name_snake_case}}')
+    content = content.replace('COIN_CONTRACT', '{{name_snake_case_caps}}')
+    content = content.replace('CoinContract', '{{name_capital_camel_case}}')
 
     # CoinMetadata anchors
     content = content.replace('COIN_METADATA_NAME', '{{name_snake_case_caps}}')
@@ -31,7 +31,7 @@ def process_file(input_file, output_file):
         file.write(content)
 
 # Example usage
-input_file = 'sources/coin_example.move'
+input_file = 'sources/coin_contract.move'
 output_file = 'coin_template.hs.move'
 
 process_file(input_file, output_file)
