@@ -269,9 +269,9 @@ module higan_fun::manager_contract {
     }
 
     // Returns the amount in SUI a user must pay to buy some amount of the token
-    public fun get_coin_buy_price<T>(self: &BondingCurve<T>, payment: u64): u64 {
+    public fun get_coin_buy_price<T>(self: &BondingCurve<T>, amount: u64): u64 {
         let s0: u64 = coin::total_supply(&self.treasury);
-        let s1: u64 = s0 + payment;
+        let s1: u64 = s0 + amount;
 
         //Formula that considers integer division edge cases
         //m * (S1 * (S1 + 1) - S0 * (S0 + 1)) / 2 + b * (S1 - S0)
@@ -282,9 +282,9 @@ module higan_fun::manager_contract {
     }
 
     // Returns the amount in SUI a user will receive for selling some amount of the token
-    public fun get_coin_sell_price<T>(self: &BondingCurve<T>, payment: u64): u64 {
+    public fun get_coin_sell_price<T>(self: &BondingCurve<T>, amount: u64): u64 {
         let s0: u64 = coin::total_supply(&self.treasury);
-        let s1: u64 = s0 - payment;
+        let s1: u64 = s0 - amount;
 
         //m * (S0 * (S0 + 1) - S1 * (S1 + 1)) / 2 + b * (S0 - S1)
         let total_cost = (PRICE_INCREASE_PER_COIN * (s0 * (s0 + 1) - s1 * (s1 + 1)) / 2) + (INITIAL_COIN_PRICE * (s0 - s1));
