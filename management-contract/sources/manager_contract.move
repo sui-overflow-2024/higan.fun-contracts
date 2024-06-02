@@ -3,54 +3,40 @@ module higan_fun::manager_contract {
     use sui::tx_context::{sender};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
-    use sui::url;
+    use sui::url::{Self, Url};
     use std::string::{Self, String};
     use std::debug;
     use std::ascii;
     // use sui::math;
     use sui::event;
 
+    //Error types
     const ENotEnoughSuiForCoinPurchase: u64 = 0;
     const ETokenNotOpenForBuySell: u64 = 1;
-    const ETokenAlreadyInitialized: u64 = 2;
-    const EInvalidOwner: u64 = 3;
-    const EValMustBeGreaterThanZero: u64 = 4;
-    const EClosingNonPendingCoin: u64 = 5;
+    const EInvalidOwner: u64 = 2;
+    const EClosingNonPendingCoin: u64 = 3;
+    const EInsufficientFeePayment: u64 = 4;
+    const ENotEnoughToWithdraw: u64 = 5;
 
-    #[allow(unused_const)]
-    const POINT_ZERO_ONE_SUI: u64 = 10_000_000; //0.01 SUI
-    #[allow(unused_const)]
-    const POINT_ONE_SUI: u64 = 100_000_000; //0.1 SUI
-    #[allow(unused_const)]
-    const ONE_SUI: u64 = 1_000_000_000; //1 SUI
-    const PRICE_INCREASE_PER_COIN: u64 = 1; // INCREASE PRICE BY ONE MIST PER COIN MINTED
     const INITIAL_COIN_PRICE: u64 = 1_000; // 0.000001 SUI
+    const PRICE_INCREASE_PER_COIN: u64 = 1; // w/ our linear bonding curve, increases the price by 1 mist for every token minted
+
 
     // Statuses for coin lifecycle
-    const STATUS_STARTING_UP: u64 = 0; // Coin has been created, but we need to do a follow up call to init metadata
-    const STATUS_OPEN: u64 = 1; // Coin is ready for buys/sells
-    const STATUS_CLOSE_PENDING: u64 = 2; // Coin has hit target, but we haven't yet created the LP for it
-    const STATUS_CLOSED: u64 = 3; // We have created the LP, burned the LP tokens, and the initial bonding curve is done
-
-    // OTW, burned after the creator is set
-    public struct SetCriticalMetadataCap has key {
-        id: UID
-    }
-
-    public struct WithdrawCap has key {
-        id: UID
-    }
+    const STATUS_OPEN: u64 = 0; // Coin is ready for buys/sells
+    const STATUS_CLOSE_PENDING: u64 = 1; // Coin has hit target, but we haven't yet created the LP for it
+    const STATUS_CLOSED: u64 = 2; // We have created the LP, burned the LP tokens, and the initial bonding curve is done
 
     public struct CoinSocialsUpdatedEvent has copy, drop {
-        coin_store_id: ID,
-        twitter_url: String,
-        telegram_url: String,
-        discord_url: String,
-        website_url: String,
-        sender: address
+        bonding_curve_id: ID,
+        twitter_url: Url,
+        telegram_url: Url,
+        discord_url: Url,
+        website_url: Url
     }
 
     public struct SwapEvent has copy, drop {
+        bonding_curve_id: ID,
         is_buy: bool,
         sui_amount: u64,
         coin_amount: u64,
@@ -60,6 +46,7 @@ module higan_fun::manager_contract {
         account: address
     }
     public struct CoinStatusChangedEvent has copy, drop {
+        bonding_curve_id: ID,
         old_status: u64,
         new_status: u64,
     }
@@ -70,13 +57,50 @@ module higan_fun::manager_contract {
         // Later we should support dynamic metadata, but for now lets use fields
         creator: address,
         publisher: address,
-        telegram_url: String,
-        discord_url: String,
-        twitter_url: String,
-        website_url: String,
+        telegram_url: Url,
+        discord_url: Url,
+        twitter_url: Url,
+        website_url: Url,
         sui_coin_amount: Balance<SUI>,
         status: u64,
-        target: u64 //Amount in MIST that when crossed closes the token
+        target: u64, //Amount in MIST that when crossed closes the token
+
+        // Copy fees from ManagementContractConfig on creation so the fees are locked when listed and can't be changed by updates to ManagementContractConfig
+        list_fee: u64,
+        trade_fee: u64,
+        launch_fee: u64,
+        nsfw: bool
+    }
+
+    public struct PrepayForListingReceipt has key {
+        id: UID,
+        creator: address,
+        name: String,
+        symbol: String,
+        description: String,
+        decimals: u64,
+        target: u64,
+        icon_url: Url,
+        website_url: Url,
+        telegram_url: Url,
+        discord_url: Url,
+        twitter_url: Url,
+        list_fee: u64,
+        trade_fee: u64,
+        launch_fee: u64,
+    }
+
+    public struct PrepayForListingEvent has copy, drop {
+        receipt: ID
+    }
+
+    public struct ManagementContractConfig has key {
+        id: UID,
+        owner: address,
+        list_fee: u64, // Fee that is paid to list the token w/ the management contract
+        trade_fee: u64, // Fee, in percentage, that is skimmed off of each buy/sell order
+        launch_fee: u64, // Fee for creating an LP on a DEX and adding the initial liquidity
+        fees_collected: Balance<SUI> // Fees collected by the contract, can be withdrawn by holders of AdminCap
     }
 
     public struct AdminCap has key {
@@ -84,38 +108,80 @@ module higan_fun::manager_contract {
     }
 
     fun init(ctx: &mut TxContext) {
-        transfer::transfer(SetCriticalMetadataCap {
-            id: object::new(ctx)
-        }, ctx.sender());
         transfer::transfer(AdminCap {
             id: object::new(ctx)
         }, ctx.sender());
+
+        transfer::share_object(ManagementContractConfig {
+            id: object::new(ctx),
+            owner: ctx.sender(),
+            list_fee: 5_000_000_000, //5 SUI
+            trade_fee: 0, // 0%
+            launch_fee: 0, // 0 SUI
+            fees_collected: balance::zero<SUI>() // Fees collected by the contract, can be withdrawn by holders of AdminCap
+        });
     }
 
+    // Frontend calls this to trigger the backend to create the token on the user's behalf
+    //TODO for right now, admin could manually refund user if backend is down. Later, this should return a receipt to the user that, 
+    // should the backend be down, they can use to withdraw their fee after a cooldown period (1h) if the backend never created their token
+    public fun prepare_to_list(self: &mut ManagementContractConfig, payment: Coin<SUI>, 
+        name: String, symbol: String, description: String, target: u64, 
+        icon_url: vector<u8>, 
+        website_url: vector<u8>, telegram_url: vector<u8>, discord_url: vector<u8>, twitter_url: vector<u8>, 
+        ctx: &mut TxContext){
+        
+        assert!(coin::value(&payment) >= self.list_fee, EInsufficientFeePayment);
+        //TODO we need to collect the launch fee here too? Or is that also going to be a percentage based fee?
+
+        coin::put(&mut self.fees_collected, payment);
+        let receipt = PrepayForListingReceipt{
+            id: object::new(ctx),
+            creator: ctx.sender(),
+            name: name,
+            symbol: symbol,
+            description: description,
+            decimals: 3,
+            target: target,
+            icon_url: url::new_unsafe(ascii::string(icon_url)),
+            website_url: url::new_unsafe(ascii::string(website_url)),
+            telegram_url: url::new_unsafe(ascii::string(telegram_url)),
+            discord_url: url::new_unsafe(ascii::string(discord_url)),
+            twitter_url: url::new_unsafe(ascii::string(twitter_url)),
+            list_fee: self.list_fee,
+            trade_fee: self.trade_fee,
+            launch_fee: self.launch_fee,
+        };
+        event::emit(PrepayForListingEvent {
+            receipt: object::id(&receipt)
+        });
+        transfer::transfer(receipt, self.owner);
+
+        
+    }
     // when the treasury cap is stored in the bonding curve, the bonding curve is the owner of the treasury cap?
     // therefore anyone can access to the treasury cap through the bonding curve?
-    public fun list<T>(_: &AdminCap, treasury_cap: TreasuryCap<T>, creator: address, ctx: &mut TxContext) {
+    public fun list<T>(_: &AdminCap, treasury_cap: TreasuryCap<T>,
+   receipt: &PrepayForListingReceipt, ctx: &mut TxContext) {
         transfer::share_object(BondingCurve<T> {
             id: object::new(ctx),
             treasury: treasury_cap,
-            creator: creator,
+            creator: receipt.creator,
             publisher: ctx.sender(),
-            website_url: string::utf8(b"OPTIONAL_METADATA_WEBSITE_URL"),
-            telegram_url: string::utf8(b"OPTIONAL_METADATA_TELEGRAM_URL"),
-            discord_url: string::utf8(b"OPTIONAL_METADATA_DISCORD_URL"),
-            twitter_url: string::utf8(b"OPTIONAL_METADATA_TWITTER_URL"),
+            website_url: receipt.website_url,
+            telegram_url: receipt.telegram_url,
+            discord_url: receipt.discord_url,
+            twitter_url: receipt.twitter_url,
             sui_coin_amount: balance::zero(),
-            status: STATUS_STARTING_UP,
-            target: 0 // TODO when you figure out how to populate creator, also populate this
+            status: STATUS_OPEN,
+            target: receipt.target, // TODO when you figure out how to populate creator, also populate this
+            list_fee: receipt.target,
+            trade_fee: receipt.target,
+            launch_fee: receipt.target,
+            nsfw: false
         });
     }
-    // Manager will eventually transfer the treasury cap to the creator
-    // public fun transfer_cap(treasury_cap: TreasuryCap<COIN_EXAMPLE>, target: address){
-    //     //I'm not positive this is secure, in theory: There is only one treasury cap, the person who called init has it,
-    //     // so the only person who should be able to transfer it in the person who called init?
-    //     transfer::public_transfer(treasury_cap, target);
-    // }
-
+    
     public fun buy_coins<T>(
         self: &mut BondingCurve<T>, payment: Coin<SUI>, mintAmount: u64, ctx: &mut TxContext
     ){
@@ -135,12 +201,14 @@ module higan_fun::manager_contract {
         if(balance_after >= self.target){
             self.status = STATUS_CLOSE_PENDING;
             event::emit(CoinStatusChangedEvent {
+                bonding_curve_id: object::id(self),
                 old_status: STATUS_OPEN,
                 new_status: STATUS_CLOSE_PENDING
             });
         };
 
         event::emit(SwapEvent {
+            bonding_curve_id: object::id(self),
             is_buy: true,
             sui_amount: payment_amount,
             coin_amount: mintAmount,
@@ -168,6 +236,7 @@ module higan_fun::manager_contract {
         transfer::public_transfer(returnSui, ctx.sender());
 
         event::emit(SwapEvent {
+            bonding_curve_id: object::id(self),
             is_buy: false,
             sui_amount: sellPrice,
             coin_amount: coinAmountSold,
@@ -223,35 +292,22 @@ module higan_fun::manager_contract {
         total_cost
     }
 
-    // Set the critical metadata for the coin, creator and target
-    // TODO, we have logic here to make sure this only gets called once, but really we want to burn the cap and check that the cap is burned before engaging w/ the token
-    public fun set_critical_metadata<T>(self: &mut BondingCurve<T>, _: &mut SetCriticalMetadataCap, target: u64, creator: address){
-        assert!(self.status == STATUS_STARTING_UP, ETokenAlreadyInitialized);
-        assert!(target > 0, EValMustBeGreaterThanZero);
-        self.target = target;
-        self.creator = creator;
-        self.status = STATUS_OPEN;
-        event::emit(CoinStatusChangedEvent {
-            old_status: STATUS_STARTING_UP,
-            new_status: STATUS_OPEN
-        });
-    }
-
     // We use web2 calls to create + manage the LP, once we're done we can close the token
-    public fun close_coin_sales<T>(self: &mut BondingCurve<T>, _: &SetCriticalMetadataCap, ctx: &mut TxContext){
+    public fun close_coin_sales<T>( _: &AdminCap, self: &mut BondingCurve<T>, ctx: &mut TxContext){
         assert!(self.creator == ctx.sender(), EInvalidOwner);
         assert!(self.status == STATUS_CLOSE_PENDING, EClosingNonPendingCoin);
         self.status = STATUS_CLOSED;
         //TODO We need to transfer the treasury cap to the creator
         // transfer::public_transfer(self.treasury, self.creator);
         event::emit(CoinStatusChangedEvent {
+            bonding_curve_id: object::id(self),
             old_status: STATUS_CLOSE_PENDING,
             new_status: STATUS_CLOSED
         });
     }
 
-    public fun set_coin_social_metadata<T>(self: &mut BondingCurve<T>, telegram_url: String, discord_url: String, twitter_url: String, website_url: String, ctx: &mut TxContext) {
-        //TODO Code smell, with this block we MUST update socials before setting critical metadata, since crit metadata updates creator
+    // Gives the creator of the token the ability to update the token's social metadata
+    public fun update_coin_metadata<T>(self: &mut BondingCurve<T>, website_url: Url, telegram_url: Url, discord_url: Url, twitter_url: Url,  ctx: &mut TxContext) {
         assert!(self.creator == ctx.sender(), EInvalidOwner);
 
         self.telegram_url = telegram_url;
@@ -260,13 +316,31 @@ module higan_fun::manager_contract {
         self.website_url = website_url;
 
         event::emit(CoinSocialsUpdatedEvent {
-            coin_store_id: object::id(self),
+            bonding_curve_id: object::id(self),
             telegram_url: telegram_url,
             discord_url: discord_url,
             twitter_url: twitter_url,
             website_url: website_url,
-            sender: ctx.sender()
         });
+    }
+
+    public fun update_fees(_: &AdminCap, self: &mut ManagementContractConfig, list_fee: u64, trade_fee: u64, launch_fee: u64, ctx: &mut TxContext) {
+        self.list_fee = list_fee;
+        self.trade_fee = trade_fee;
+        self.launch_fee = launch_fee;
+    }
+
+
+    public fun withdraw_all(_: &AdminCap, self: &mut ManagementContractConfig, ctx: &mut TxContext) {
+        let amount = balance::value<SUI>(&self.fees_collected);
+        let withdrawSui = coin::take(&mut self.fees_collected, amount, ctx);
+        transfer::public_transfer(withdrawSui, ctx.sender());
+    }
+
+    public fun withdraw_fees(_: &AdminCap, self: &mut ManagementContractConfig, amount: u64, ctx: &mut TxContext) {
+        assert!(amount <= balance::value<SUI>(&self.fees_collected), ENotEnoughToWithdraw);
+        let withdrawSui = coin::take(&mut self.fees_collected, amount, ctx);
+        transfer::public_transfer(withdrawSui, ctx.sender());
     }
 
 
