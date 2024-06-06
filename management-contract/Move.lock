@@ -2,22 +2,31 @@
 
 [move]
 version = 2
-manifest_digest = "7BE2319394CA7062BA9BB87C2C4C70D12B35A70DF09D8A9FA4EBB4A1A752CC05"
-deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
+manifest_digest = "4795DD6B115EED079377A0B82A2A07ECFC1FD94218F3FC6A5B005CF36753BEF3"
+deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { name = "Sui" },
+  { name = "kriya_spot_dex" },
 ]
 
 [[move.package]]
 name = "MoveStdlib"
-source = { git = "https://github.com/MystenLabs/sui.git", rev = "devnet", subdir = "crates/sui-framework/packages/move-stdlib" }
+source = { git = "https://github.com/MystenLabs/sui.git", rev = "testnet", subdir = "crates/sui-framework/packages/move-stdlib" }
 
 [[move.package]]
 name = "Sui"
-source = { git = "https://github.com/MystenLabs/sui.git", rev = "devnet", subdir = "crates/sui-framework/packages/sui-framework" }
+source = { git = "https://github.com/MystenLabs/sui.git", rev = "testnet", subdir = "crates/sui-framework/packages/sui-framework" }
 
 dependencies = [
   { name = "MoveStdlib" },
+]
+
+[[move.package]]
+name = "kriya_spot_dex"
+source = { local = "../kriya-dex" }
+
+dependencies = [
+  { name = "Sui" },
 ]
 
 [move.toolchain-version]

@@ -1,0 +1,1 @@
+Everything in this directory is from Kriya and is not a part of the Sui Overflow submission. We had to copy their contracts from mainnet because they don't have them on testnet. 

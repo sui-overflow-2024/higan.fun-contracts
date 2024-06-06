@@ -1,10 +1,12 @@
 module higan_fun::manager_contract {
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin, TreasuryCap, CoinMetadata};
     use sui::tx_context::{sender};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::url::{Self, Url};
     use std::string::{Self, String};
+    use kriya::spot_dex::{create_protocol_configs, ProtocolConfigs};
+
     use std::debug;
     use std::ascii;
     // use sui::math;
@@ -69,7 +71,7 @@ module higan_fun::manager_contract {
         list_fee: u64,
         trade_fee: u64,
         launch_fee: u64,
-        nsfw: bool
+        nsfw: bool,
     }
 
     public struct PrepayForListingReceipt has key {
@@ -125,11 +127,18 @@ module higan_fun::manager_contract {
     // Frontend calls this to trigger the backend to create the token on the user's behalf
     //TODO for right now, admin could manually refund user if backend is down. Later, this should return a receipt to the user that, 
     // should the backend be down, they can use to withdraw their fee after a cooldown period (1h) if the backend never created their token
-    public fun prepare_to_list(self: &mut ManagementContractConfig, payment: Coin<SUI>, 
-        name: String, symbol: String, description: String, target: u64, 
+    public fun prepare_to_list(self: &mut ManagementContractConfig, 
+        payment: Coin<SUI>, 
+        name: String, 
+        symbol: String, 
+        description: String, 
+        target: u64, 
         icon_url: vector<u8>, 
-        website_url: vector<u8>, telegram_url: vector<u8>, discord_url: vector<u8>, twitter_url: vector<u8>, 
-        ctx: &mut TxContext){
+        website_url: vector<u8>, 
+        telegram_url: vector<u8>, 
+        discord_url: vector<u8>, 
+        twitter_url: vector<u8>, 
+        ctx: &mut TxContext): PrepayForListingReceipt{
         
         assert!(coin::value(&payment) >= self.list_fee, EInsufficientFeePayment);
         //TODO we need to collect the launch fee here too? Or is that also going to be a percentage based fee?
@@ -155,15 +164,19 @@ module higan_fun::manager_contract {
         event::emit(PrepayForListingEvent {
             receipt: object::id(&receipt)
         });
-        transfer::transfer(receipt, self.owner);
+        receipt
+        // transfer::transfer(receipt, self.owner);
 
         
     }
     // when the treasury cap is stored in the bonding curve, the bonding curve is the owner of the treasury cap?
     // therefore anyone can access to the treasury cap through the bonding curve?
-    public fun list<T>(_: &AdminCap, treasury_cap: TreasuryCap<T>,
-   receipt: &PrepayForListingReceipt, ctx: &mut TxContext) {
-        transfer::share_object(BondingCurve<T> {
+    public fun list<T>(_: &AdminCap, 
+    treasury_cap: TreasuryCap<T>,
+    receipt: &PrepayForListingReceipt, 
+    ctx: &mut TxContext) {
+    // : BondingCurve<T> {
+         transfer::share_object(BondingCurve<T> {
             id: object::new(ctx),
             treasury: treasury_cap,
             creator: receipt.creator,
@@ -178,12 +191,12 @@ module higan_fun::manager_contract {
             list_fee: receipt.target,
             trade_fee: receipt.target,
             launch_fee: receipt.target,
-            nsfw: false
+            nsfw: false,
         });
     }
     
     public fun buy_coins<T>(
-        self: &mut BondingCurve<T>, payment: Coin<SUI>, mintAmount: u64, ctx: &mut TxContext
+        self: &mut BondingCurve<T>, payment: Coin<SUI>, coin_metadata: &CoinMetadata<T>, sui_metadata: &CoinMetadata<SUI>, mintAmount: u64, ctx: &mut TxContext
     ){
         //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
         // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){
@@ -199,12 +212,36 @@ module higan_fun::manager_contract {
         let balance_after: u64 = balance::value<SUI>(&self.sui_coin_amount) + payment_amount;
 
         if(balance_after >= self.target){
+
+            let pc = create_protocol_configs(
+                200, // protocol_fee_percent_uc 200 = 2%
+                300, // lp_fee_percent_uc 300 = 3%
+                200, // protocol_fee_percent_stable 200 = 2%
+                300, // lp_fee_percent_stable 300 = 3%
+                true, // is_swap_enabled true = swaps are enabled
+                true, // is_deposit_enabled true = deposits are enabled
+                true, // is_withdraw_enabled true = withdrawals are enabled
+                ctx.sender(), // admin ctx.sender() = admin is the transaction sender
+                sui::table::new<address, bool>(ctx), // whitelisted_addresses vector::empty() = no whitelisted addresses
+                ctx
+            );
+
+          
+            kriya::spot_dex::create_pool_<T, SUI>(
+               &pc,
+                false,
+                coin_metadata,
+                sui_metadata,
+                ctx
+            );
+
             self.status = STATUS_CLOSE_PENDING;
             event::emit(CoinStatusChangedEvent {
                 bonding_curve_id: object::id(self),
                 old_status: STATUS_OPEN,
                 new_status: STATUS_CLOSE_PENDING
             });
+            // transfer::public_transfer(pc, self.publisher)
         };
 
         event::emit(SwapEvent {
@@ -283,6 +320,7 @@ module higan_fun::manager_contract {
 
     // Returns the amount in SUI a user will receive for selling some amount of the token
     public fun get_coin_sell_price<T>(self: &BondingCurve<T>, amount: u64): u64 {
+        
         let s0: u64 = coin::total_supply(&self.treasury);
         let s1: u64 = s0 - amount;
 
