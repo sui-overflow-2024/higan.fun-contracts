@@ -8,7 +8,7 @@ module higan_fun::coin_contract {
 
     fun init(witness: COIN_CONTRACT, ctx: &mut TxContext) {
         let icon_url = option::some(url::new_unsafe(ascii::string(b"COIN_METADATA_ICON_URL")));
-        let (treasury_cap, coin_metadata) = coin::create_currency<COIN_CONTRACT>(witness, 3, b"COIN_METADATA_NAME", b"COIN_METADATA_SYMBOL", b"COIN_METADATA_DESCRIPTION", icon_url, ctx);
+        let (treasury_cap, coin_metadata) = coin::create_currency<COIN_CONTRACT>(witness, 3/*DECIMALS*/, b"COIN_METADATA_NAME", b"COIN_METADATA_SYMBOL", b"COIN_METADATA_DESCRIPTION", icon_url, ctx);
         transfer::public_freeze_object(coin_metadata);
 
         // create and share the CoinExampleStore

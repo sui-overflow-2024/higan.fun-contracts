@@ -319,7 +319,7 @@ module kriya::spot_dex {
             is_deposit_enabled          : true, 
             is_withdraw_enabled         : true, 
             admin                       : sui::tx_context::sender(arg0), 
-            whitelisted_addresses       : v0,
+            whitelisted_addresses           : v0,
         };
         emit_whitelist_event(sui::tx_context::sender(arg0), true);
         0x2::transfer::share_object<ProtocolConfigs>(v1);

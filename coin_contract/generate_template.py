@@ -17,7 +17,7 @@ def process_file(input_file, output_file):
     content = content.replace('COIN_METADATA_ICON_URL', '{{coin_metadata_icon_url}}')
     content = content.replace('COIN_METADATA_SYMBOL', '{{coin_metadata_symbol}}')
     content = content.replace('COIN_METADATA_DESCRIPTION', '{{coin_metadata_description}}')
-
+    content = content.replace("3/*DECIMALS*/", '{{coin_metadata_decimals}}')
     # Metadata anchors we added for a better frontend experience
     content = content.replace('OPTIONAL_METADATA_WEBSITE_URL', '{{optional_metadata_website_url}}')
     content = content.replace('OPTIONAL_METADATA_TELEGRAM_URL', '{{optional_metadata_telegram_url}}')

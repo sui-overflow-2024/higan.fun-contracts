@@ -6,8 +6,8 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
-#kriya_spot_dex = { git = "https://github.com/efficacy-finance/kriya-dex-interface.git", subdir = "./", rev = "latest", override = true }
-kriya_spot_dex = { local = "../kriya-dex" }
+kriya_spot_dex = { git = "git@github.com:sui-overflow-2024/kriya-dex-interface.git", subdir = "./", rev = "main", override = true }
+#kriya_spot_dex = { local = "../kriya-dex" }
 
 
 # For remote import, use the `{ git = "...", subdir = "...", rev = "..." }`.
@@ -23,7 +23,6 @@ kriya_spot_dex = { local = "../kriya-dex" }
 
 [addresses]
 higan_fun = "0x0"
-#kriya = "0xe10f85f47c6d11f63e650aa7daf168c55ead9abb6da4227eba5dd5e4f8d890b1"
 
 # Named addresses will be accessible in Move as `@name`. They're also exported:
 # for example, `std = "0x1"` is exported by the Standard Library.

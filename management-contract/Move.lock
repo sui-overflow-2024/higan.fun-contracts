@@ -2,7 +2,7 @@
 
 [move]
 version = 2
-manifest_digest = "4795DD6B115EED079377A0B82A2A07ECFC1FD94218F3FC6A5B005CF36753BEF3"
+manifest_digest = "4172F7485E50E852B3ED7305EE56939AA1A8216789B8E56A04C2DE5827957823"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { name = "Sui" },
@@ -23,14 +23,14 @@ dependencies = [
 
 [[move.package]]
 name = "kriya_spot_dex"
-source = { local = "../kriya-dex" }
+source = { git = "git@github.com:sui-overflow-2024/kriya-dex-interface.git", rev = "main", subdir = "./" }
 
 dependencies = [
   { name = "Sui" },
 ]
 
 [move.toolchain-version]
-compiler-version = "1.26.0"
+compiler-version = "1.26.1"
 edition = "2024.beta"
 flavor = "sui"
 
@@ -44,6 +44,6 @@ published-version = "1"
 
 [env.testnet-official]
 chain-id = "4c78adac"
-original-published-id = "0x96d38f0f646602e8d8ea3e3468ecf78124f866b9175ed6952bf7784e1c18854a"
-latest-published-id = "0x96d38f0f646602e8d8ea3e3468ecf78124f866b9175ed6952bf7784e1c18854a"
+original-published-id = "0xa3b37cafe19d4f9a5393d8ce86a413c3583846df54c0ea61b0081e5878dd6958"
+latest-published-id = "0xa3b37cafe19d4f9a5393d8ce86a413c3583846df54c0ea61b0081e5878dd6958"
 published-version = "1"

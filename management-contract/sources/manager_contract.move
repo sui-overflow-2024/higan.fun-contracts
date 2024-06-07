@@ -5,11 +5,12 @@ module higan_fun::manager_contract {
     use sui::sui::SUI;
     use sui::url::{Self, Url};
     use std::string::{Self, String};
-    use kriya::spot_dex::{create_protocol_configs, ProtocolConfigs};
+    // use kriya::spot_dex::{create_protocol_configs, ProtocolConfigs};
+    use kriya::spot_dex::{ProtocolConfigs, Pool};
 
     use std::debug;
     use std::ascii;
-    // use sui::math;
+    use sui::math;
     use sui::event;
 
     //Error types
@@ -19,6 +20,7 @@ module higan_fun::manager_contract {
     const EClosingNonPendingCoin: u64 = 3;
     const EInsufficientFeePayment: u64 = 4;
     const ENotEnoughToWithdraw: u64 = 5;
+    const EInvalidInputToListing: u64 = 6;
 
     const INITIAL_COIN_PRICE: u64 = 1_000; // 0.000001 SUI
     const PRICE_INCREASE_PER_COIN: u64 = 1; // w/ our linear bonding curve, increases the price by 1 mist for every token minted
@@ -64,6 +66,7 @@ module higan_fun::manager_contract {
         twitter_url: Url,
         website_url: Url,
         sui_coin_amount: Balance<SUI>,
+        reserve_coin_amount: Balance<T>,
         status: u64,
         target: u64, //Amount in MIST that when crossed closes the token
 
@@ -132,15 +135,18 @@ module higan_fun::manager_contract {
         name: String, 
         symbol: String, 
         description: String, 
+        decimals: u64,
         target: u64, 
         icon_url: vector<u8>, 
         website_url: vector<u8>, 
         telegram_url: vector<u8>, 
         discord_url: vector<u8>, 
         twitter_url: vector<u8>, 
-        ctx: &mut TxContext): PrepayForListingReceipt{
+        ctx: &mut TxContext){
+        // : PrepayForListingReceipt{
         
         assert!(coin::value(&payment) >= self.list_fee, EInsufficientFeePayment);
+        assert!(decimals <= 9, EInvalidInputToListing );
         //TODO we need to collect the launch fee here too? Or is that also going to be a percentage based fee?
 
         coin::put(&mut self.fees_collected, payment);
@@ -150,7 +156,7 @@ module higan_fun::manager_contract {
             name: name,
             symbol: symbol,
             description: description,
-            decimals: 3,
+            decimals: decimals,
             target: target,
             icon_url: url::new_unsafe(ascii::string(icon_url)),
             website_url: url::new_unsafe(ascii::string(website_url)),
@@ -164,17 +170,22 @@ module higan_fun::manager_contract {
         event::emit(PrepayForListingEvent {
             receipt: object::id(&receipt)
         });
-        receipt
-        // transfer::transfer(receipt, self.owner);
-
-        
+        // receipt
+        transfer::transfer(receipt, self.owner);
     }
+
     // when the treasury cap is stored in the bonding curve, the bonding curve is the owner of the treasury cap?
     // therefore anyone can access to the treasury cap through the bonding curve?
     public fun list<T>(_: &AdminCap, 
-    treasury_cap: TreasuryCap<T>,
+    mut treasury_cap: TreasuryCap<T>,
+    metadata: &CoinMetadata<T>,
     receipt: &PrepayForListingReceipt, 
     ctx: &mut TxContext) {
+        //Mint 100 of the token as reserve amount to add liquidity to LP too
+        let reserve_amount = 100 * math::pow(10, coin::get_decimals(metadata));
+        let minted_coins = coin::mint(&mut treasury_cap, reserve_amount, ctx);
+        let reserve_balance = coin::into_balance(minted_coins);
+
     // : BondingCurve<T> {
          transfer::share_object(BondingCurve<T> {
             id: object::new(ctx),
@@ -192,11 +203,12 @@ module higan_fun::manager_contract {
             trade_fee: receipt.target,
             launch_fee: receipt.target,
             nsfw: false,
+            reserve_coin_amount: reserve_balance,
         });
     }
     
     public fun buy_coins<T>(
-        self: &mut BondingCurve<T>, payment: Coin<SUI>, coin_metadata: &CoinMetadata<T>, sui_metadata: &CoinMetadata<SUI>, mintAmount: u64, ctx: &mut TxContext
+        self: &mut BondingCurve<T>, payment: Coin<SUI>, mintAmount: u64, ctx: &mut TxContext
     ){
         //TODO: Later we want to return the token and the request here and consume in a PTB. For now this just mints inline for ease of use.
         // : (Token<COIN_EXAMPLE>, ActionRequest<COIN_EXAMPLE>){
@@ -213,28 +225,21 @@ module higan_fun::manager_contract {
 
         if(balance_after >= self.target){
 
-            let pc = create_protocol_configs(
-                200, // protocol_fee_percent_uc 200 = 2%
-                300, // lp_fee_percent_uc 300 = 3%
-                200, // protocol_fee_percent_stable 200 = 2%
-                300, // lp_fee_percent_stable 300 = 3%
-                true, // is_swap_enabled true = swaps are enabled
-                true, // is_deposit_enabled true = deposits are enabled
-                true, // is_withdraw_enabled true = withdrawals are enabled
-                ctx.sender(), // admin ctx.sender() = admin is the transaction sender
-                sui::table::new<address, bool>(ctx), // whitelisted_addresses vector::empty() = no whitelisted addresses
-                ctx
-            );
+            // let pc = create_protocol_configs(
+            //     200, // protocol_fee_percent_uc 200 = 2%
+            //     300, // lp_fee_percent_uc 300 = 3%
+            //     200, // protocol_fee_percent_stable 200 = 2%
+            //     300, // lp_fee_percent_stable 300 = 3%
+            //     true, // is_swap_enabled true = swaps are enabled
+            //     true, // is_deposit_enabled true = deposits are enabled
+            //     true, // is_withdraw_enabled true = withdrawals are enabled
+            //     ctx.sender(), // admin ctx.sender() = admin is the transaction sender
+            //     sui::table::new<address, bool>(ctx), // whitelisted_addresses vector::empty() = no whitelisted addresses
+            //     ctx
+            // );
 
-          
-            kriya::spot_dex::create_pool_<T, SUI>(
-               &pc,
-                false,
-                coin_metadata,
-                sui_metadata,
-                ctx
-            );
 
+            // kriya::spot_dex::transfer_protocol_config(pc, self.publisher);
             self.status = STATUS_CLOSE_PENDING;
             event::emit(CoinStatusChangedEvent {
                 bonding_curve_id: object::id(self),
@@ -255,6 +260,49 @@ module higan_fun::manager_contract {
             account: ctx.sender()
         });
     }
+
+    public fun create_lp<T>(_: &AdminCap, 
+    self: &mut BondingCurve<T>, 
+    protocol_configs: &ProtocolConfigs, 
+    coin_metadata: &CoinMetadata<T>, 
+    sui_metadata: &CoinMetadata<SUI>, 
+    ctx: &mut TxContext){
+        assert!(self.status == STATUS_CLOSE_PENDING, EClosingNonPendingCoin);
+        //TODO Collect closing fee here
+
+        kriya::spot_dex::create_pool_<T, SUI>(
+                protocol_configs,
+                false,
+                coin_metadata,
+                sui_metadata,
+                ctx
+            );
+    }
+
+    public fun add_initial_liquidity<T>(
+        _: &AdminCap, 
+        self: &mut BondingCurve<T>, 
+        pool: &mut Pool<T, SUI>, 
+        ctx: &mut TxContext){
+        assert!(self.status == STATUS_CLOSE_PENDING, EClosingNonPendingCoin);
+        //TODO Collect closing fee here
+        let take_amount = balance::value(&self.reserve_coin_amount);
+        let token_x = coin::take(&mut self.reserve_coin_amount, take_amount, ctx);
+        let token_y = coin::zero<SUI>(ctx);
+        let value_y = coin::value(&token_y);
+        let value_x = coin::value(&token_x);
+        kriya::spot_dex::add_liquidity_<T, SUI>(
+                pool,
+                token_y, //This is the correct order, Y -> X
+                token_x,
+                value_y, 
+                value_x, 
+                value_y,//amount_y_min_deposit
+                value_y,//amount_x_min_deposit
+                ctx
+            );
+    }
+
 
     //TODO Later remove the below and return coin for PTB
     #[allow(lint(self_transfer))]

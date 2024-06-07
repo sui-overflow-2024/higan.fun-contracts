@@ -12,15 +12,12 @@ import {
 import { loadConfigFromEnv } from "./util";
 
 const client = new SuiClient({
-  url: getFullnodeUrl("devnet"),
+  url: getFullnodeUrl("testnet"),
 });
 (async () => {
   const config = loadConfigFromEnv();
-  const amountToSend = pointOneSui;
-  const moduleName = "coin_example";
-
   const txb = new TransactionBlock();
-  
+
   // Withdraw the specified amount of SUI tokens from the user's account
   //   txb.moveCall({
   //     target: `0x2::coin::withdraw`,
@@ -32,34 +29,43 @@ const client = new SuiClient({
   // console.log("txb.gas: ", txb.gas);
   // I want to buy 100 tokens
   const buy100Price = txb.moveCall({
-    target: `${config.packageId}::${moduleName}::get_coin_buy_price`,
+    target: `${config.managerContractId}::manager_contract::get_coin_buy_price`,
     arguments: [
-      txb.object(config.storeId),
+      txb.object(config.bondingCurveId),
       txb.pure(100000), // 100,000 tokens in reality, looks like 100 tokens
+    ],
+    typeArguments: [
+      `0xe31912ad16d0f6169ea4be7274d3af3d1f2659ab2c4c01a38785035b2b2d28d5::adipisci_abutor::ADIPISCI_ABUTOR`,
     ],
   });
 
   const [coinToSendToMint] = txb.splitCoins(txb.gas, [txb.object(buy100Price)]);
-  // // Call the `my_function` in the `my_module` module with the withdrawn SUI tokens
+  // // // Call the `my_function` in the `my_module` module with the withdrawn SUI tokens
 
-  // console.log(coinToSendToMint);
-  // txb.transferObjects(
-  //   [coinToSendToMint],
-  //   // txb.pure(config.keyPair.toSuiAddress())
-  //   txb.pure(
-  //     "0xb2720b42e26a7fc1eb555ecd154ef3dc2446f80c1f186af901cd38b842e52044"
-  //   )
-  // );
-  // console.log("Calling buy_tokens");
+  // // console.log(coinToSendToMint);
+  // // txb.transferObjects(
+  // //   [coinToSendToMint],
+  // //   // txb.pure(config.keyPair.toSuiAddress())
+  // //   txb.pure(
+  // //     "0xb2720b42e26a7fc1eb555ecd154ef3dc2446f80c1f186af901cd38b842e52044"
+  // //   )
+  // // );
+  // // console.log("Calling buy_tokens");
 
-  // // // This will
+  // // // // This will
   txb.moveCall({
-    target: `${config.packageId}::${moduleName}::buy_coins`,
+    target: `${config.managerContractId}::manager_contract::buy_coins`,
     arguments: [
-      txb.object(config.storeId),
+      txb.object(config.bondingCurveId),
+      txb.object(config.kriyaProtocolConfigsId),
       txb.object(coinToSendToMint),
+      txb.object(config.sourceCoinMetadataId),
+      txb.object(config.suiCoinMetadataId),
       txb.pure(100_000),
       // txb.object(process.env.PAYMENT_ID || ""),
+    ],
+    typeArguments: [
+      `${config.packageId}::${config.moduleName}::ADIPISCI_ABUTOR`,
     ],
   });
 
@@ -75,6 +81,7 @@ const client = new SuiClient({
         showEvents: true,
         showInput: true,
         showObjectChanges: true,
+        showRawInput: true,
       },
     });
     console.log("Response: ", response);

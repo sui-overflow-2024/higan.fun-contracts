@@ -3,17 +3,35 @@ import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 type Config = {
   network: string;
   packageId: string;
-  storeId: string;
+  managerContractId: string;
+  suiCoinMetadataId: string;
+  kriyaProtocolConfigsId: string;
   keyPair: Ed25519Keypair;
+  bondingCurveId: string;
+  sourceCoinMetadataId: string;
+  moduleName: string;
 };
 export const loadConfigFromEnv = (): Config => {
   const privateKey = process.env.PRIVATE_KEY;
   const privateKeyMnemonic = process.env.PRIVATE_KEY_MNEMONIC;
   const packageId = process.env.PACKAGE_ID;
-  const exampleTokenStoreObjectId = process.env.COIN_STORE_ID;
+  const managerContractId = process.env.MANAGER_CONTRACT_ID;
+  const suiCoinMetadataId = process.env.SUI_COIN_METADATA_ID;
+  const kriyaProtocolConfigsId = process.env.KRIYA_PROTOCOL_CONFIGS_ID;
+  const bondingCurveId = process.env.BONDING_CURVE_ID;
+  const sourceCoinMetadataId = process.env.SOURCE_COIN_METADATA_ID;
+  const moduleName = process.env.MODULE_NAME;
   console.log("packageId", packageId);
-  console.log("exampleTokenStoreObjectId", exampleTokenStoreObjectId);
-  if (!packageId || !exampleTokenStoreObjectId || !privateKeyMnemonic) {
+  if (
+    !packageId ||
+    !privateKeyMnemonic ||
+    !managerContractId ||
+    !suiCoinMetadataId ||
+    !kriyaProtocolConfigsId ||
+    !bondingCurveId ||
+    !sourceCoinMetadataId ||
+    !moduleName
+  ) {
     throw new Error(
       "PACKAGE_ID or EXAMPLE_STORE_ID or PRIVATE_KEY_MNEMONIC environment variables not provided"
     );
@@ -26,7 +44,12 @@ export const loadConfigFromEnv = (): Config => {
   return {
     network: process.env.NETWORK || "devnet",
     packageId,
-    storeId: exampleTokenStoreObjectId,
     keyPair: keypair,
+    managerContractId,
+    suiCoinMetadataId,
+    kriyaProtocolConfigsId,
+    bondingCurveId,
+    sourceCoinMetadataId,
+    moduleName,
   };
 };

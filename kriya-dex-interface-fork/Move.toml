@@ -1,0 +1,15 @@
+[package]
+name = "kriya_spot_dex"
+version = "1.0.0"
+published-at = "0xb5722117aec83525c71f84c31c1f28e29397feffa95c99cce72a150a555a63dd"
+
+[addresses]
+#Below is real Kriya on mainnet.
+#kriya = "0xa00e94ca43888e93c7c2956281ac6e23ec1f31960913a34d10dfb5b711f5f4d6"
+#Below is real Kriya on testnet.
+kriya = "0xb5722117aec83525c71f84c31c1f28e29397feffa95c99cce72a150a555a63dd"
+std = "0x1"
+sui =  "0x2"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }

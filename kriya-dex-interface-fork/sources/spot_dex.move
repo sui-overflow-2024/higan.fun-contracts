@@ -212,10 +212,10 @@ module kriya::spot_dex {
             whitelisted_addresses 
         }
     }
-    public fun consume_protocol_configs(protocol_configs: ProtocolConfigs) {
-        let _ = protocol_configs.protocol_fee_percent_uc;
-    }
 
+    public fun transfer_protocol_config(pc: ProtocolConfigs, target: address){
+        transfer::transfer( pc, target);
+    }
     /// Entrypoint for the `swap_token_y` method. Sends swapped token_x
     /// to sender.
     public entry fun swap_token_y_<X, Y>(
